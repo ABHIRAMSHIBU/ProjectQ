@@ -4,14 +4,17 @@
 #define DEBUG true
 #define True true
 #define False false
-#define timeoutShort 1
+#define timeoutShort 10
 #define timeoutLong 200
+#define MESSAGELEN 100           // 100 Bytes message length
 /* Global variables section */
 String command="";
 String responce="";
 long heartBeatTimer;
 bool heartBeatVar=false;
-char buff[30];
+char buff[MESSAGELEN];
+char KEY[7]="123456";
+bool ENCEN=true;
 /* END Global variables */
 
 /* Global functions Section */
@@ -25,11 +28,54 @@ void heartBeat(){
 }
 void sendCommAndGetResp(unsigned int timeout){
     delay(commandDelay);
-    command.toCharArray(buff,30);
+    command.toCharArray(buff,MESSAGELEN);
     Serial.write(buff);
     delay(commandDelay);
     Serial.setTimeout(timeout);
     responce=Serial.readString();
+}
+char bytexor(char a, char b){
+    bool bita;
+    bool bitb;
+    char out=0;
+    for(int i=0;i<8;i++){
+        if((a && (1<<i))>0){
+            bita=1;
+        }
+        else{
+            bita=0;
+        }
+        if((b && (1<<i))>0){
+            bitb=1;
+        }
+        else{
+            bitb=0;
+        }
+        //bita=bita ^ bitb;
+        if(bita==bitb){
+            bita=0;
+            Serial.println();
+            Serial.println('H');
+        }
+        else{
+            bita=1;
+            Serial.println();
+            Serial.println('L');
+        }
+        out = out || (bita<<i);
+    }
+    return out;
+}
+void encryptOTP(char * data){
+   int len = strlen(data);
+   int lenkey = strlen(KEY);
+   int pos=0;
+   for(int i=0;i<len;i++){
+       pos=i%lenkey;
+       data[i]=bytexor(data[i], KEY[pos]);
+       //Serial.println(data[i],"INT");
+       //Serial.println(KEY[pos]) ;
+   }
 }
 /* END Global functions */
 
@@ -158,7 +204,29 @@ void loop(){
     Serial.setTimeout(timeoutShort);
     String temp=Serial.readString();
     if(temp!=""){
-        Serial.println(temp);
+        if(temp=="VERSION"){
+            Serial.println(VERSION);
+        }
+        else if(temp=="ENCDIS"){
+            ENCEN=false;
+        }
+        else if(temp=="ENCEN"){
+            ENCEN=true;
+        }
+        else if(temp.substring(0,3)=="ENC"){
+            temp.substring(3).toCharArray(buff,MESSAGELEN);
+            int len=strlen(buff);
+            //Serial.write(buff);
+            if(ENCEN)
+                encryptOTP(buff);
+            //Serial.print(strlen(buff));
+            for(int i=0;i<len;i++){
+                Serial.print(buff[i]);
+                Serial.print('-');
+            }
+        }
     }
+    //command="Hello World!";
+    //sendCommAndGetResp(timeoutLong);
     heartBeat();
 }
