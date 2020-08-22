@@ -15,6 +15,7 @@ bool heartBeatVar=false;
 char buff[MESSAGELEN];
 char KEY[7]="123456";
 bool ENCEN=true;
+int keylen=6;
 /* END Global variables */
 
 /* Global functions Section */
@@ -34,48 +35,13 @@ void sendCommAndGetResp(unsigned int timeout){
     Serial.setTimeout(timeout);
     responce=Serial.readString();
 }
-char bytexor(char a, char b){
-    bool bita;
-    bool bitb;
-    char out=0;
-    for(int i=0;i<8;i++){
-        if((a && (1<<i))>0){
-            bita=1;
-        }
-        else{
-            bita=0;
-        }
-        if((b && (1<<i))>0){
-            bitb=1;
-        }
-        else{
-            bitb=0;
-        }
-        //bita=bita ^ bitb;
-        if(bita==bitb){
-            bita=0;
-            Serial.println();
-            Serial.println('H');
-        }
-        else{
-            bita=1;
-            Serial.println();
-            Serial.println('L');
-        }
-        out = out || (bita<<i);
+void enc(char * key, char * data, int datalen){
+    int poskey=0;
+    int len=datalen;
+    for(int i=0;i<len;i++){
+        data[i]=data[i]^key[poskey];
+        poskey=(i+1)%keylen;
     }
-    return out;
-}
-void encryptOTP(char * data){
-   int len = strlen(data);
-   int lenkey = strlen(KEY);
-   int pos=0;
-   for(int i=0;i<len;i++){
-       pos=i%lenkey;
-       data[i]=bytexor(data[i], KEY[pos]);
-       //Serial.println(data[i],"INT");
-       //Serial.println(KEY[pos]) ;
-   }
 }
 /* END Global functions */
 
@@ -218,12 +184,15 @@ void loop(){
             int len=strlen(buff);
             //Serial.write(buff);
             if(ENCEN)
-                encryptOTP(buff);
+                enc(KEY,buff,len);
+            command="";
             //Serial.print(strlen(buff));
             for(int i=0;i<len;i++){
-                Serial.print(buff[i]);
-                Serial.print('-');
+                command+=String(buff[i],HEX);
+                if(i<len-1)
+                    command+="-";
             }
+            sendCommAndGetResp(timeoutShort);
         }
     }
     //command="Hello World!";
