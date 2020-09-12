@@ -4,6 +4,7 @@ import gc
 import requests
 import time
 from datetime import datetime
+import json
 url="https://abhiramshibu.tuxforums.com:5000"
 beacon_id="beac1"
 recvBuff=["",[]]
@@ -126,14 +127,23 @@ class GPSPipe:
         self.t.join()
     def __del__(self):
         self.active=False
-def run(strap):
+def refreshDB():
+    global strapmacs
+    global strapkeys
+    r = requests.post(url, data = {'B_ID':beacon_id})
+    data=json.loads(r.content.decode())
+    strapmacs=data[0]
+    strapkeys=data[1]
+    #print(strapmacs,strapkeys)
+    #l[[mac,mac,mac],[key,key,key]]
+def run(strap,key):
     try:
         latitude=gpsPipe.data["Latitude"]
         longitude=gpsPipe.data["Longitude"]
         speed=gpsPipe.data["Speed"]
         _time= gpsPipe.data["Time"]
         data=strap.Encrypt(latitude+","+longitude+","+_time)
-        data=strap.dataunit.dec("123456".encode()).decode()
+        data=strap.dataunit.dec(key.encode()).decode()
         data=data.split(",")
         lat = data[0]
         lng = data[1]
@@ -150,18 +160,26 @@ def run(strap):
         if(_time==datetime.strip() and lat == latitude and lng == longitude):
             valid=True
         r = requests.post(url, data = {'B_ID':beacon_id,"TIME":datetime,"SPEED":speed,"LATITUDE":lat,"LONGITUDE":lng,"B_C":incrementCounter(),"S_ID":idstrp,"S_C":int(ctrstrp)})
+        result=r.content.decode()
+        # if(result=="DIRTY"):
+        #     refreshDB()
+        #     print("Refreshed")
+        # else:
+        #     print("No need to refresh")
         print(lat,lng,datetime,ctrstrp,idstrp)
     except Exception as e:
         print(e)
         pass
-strapmacs=["54:4A:16:37:63:E7"]
+strapkeys=[]
+strapmacs=[]
+refreshDB()
 gpsPipe = GPSPipe()
 straps = [Beacon_BT(i) for i in strapmacs]
 try:
     while(True):
         timenow=datetime.now()
-        for i in straps:
-            run(i)
+        for i in range(len(straps)):
+            run(straps[i],strapkeys[i])
         td=datetime.now()-timenow
         if(td.total_seconds()<60):
             time.sleep(60-td.total_seconds())
