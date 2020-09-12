@@ -172,7 +172,12 @@ def run(strap,key):
         pass
 strapkeys=[]
 strapmacs=[]
-refreshDB()
+while True:
+    try:
+        refreshDB()
+        break
+    except Exception as e:
+        print(e)
 gpsPipe = GPSPipe()
 straps = [Beacon_BT(i) for i in strapmacs]
 try:
